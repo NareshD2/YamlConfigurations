@@ -1,13 +1,13 @@
-name: Auto Update Image Line (PR Mode)
+name: Auto Update Master & Slave Images (PR Mode)
 
 on:
   repository_dispatch:
     types: [update-image]
   workflow_dispatch:
     inputs:
-      controller_tag:
+      master_image:
         required: false
-      controller_image:
+      slave_image:
         required: false
 
 permissions:
@@ -15,44 +15,71 @@ permissions:
   pull-requests: write
 
 env:
-  FILE_PATH: deployment.yaml
-  OLD_IMAGE: jenkins/jenkins:lts-jdk17
+  MASTER_FILE: deployment.yaml        # Controller manifest (root)
+  SLAVE_FILE: docker-agents.yaml      # Agent manifest (root)
+  OLD_MASTER: jenkins/jenkins:lts-jdk17
+  OLD_SLAVE: jenkins/inbound-agent:latest
 
 jobs:
-  update-file:
+  update-files:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
 
-      - name: Determine Image
-        id: img
+      - name: Read Input Images
+        id: imgs
         run: |
-          FULL="${{ github.event.client_payload.controller_image }}"
-          [ -z "$FULL" ] && FULL="${{ github.event.inputs.controller_image }}"
-          TAG="${{ github.event.client_payload.controller_tag }}"
-          [ -z "$TAG" ] && TAG="${{ github.event.inputs.controller_tag }}"
-          if [ -z "$FULL" ]; then
-            FULL="docker.io/nareshd2/jenkins-master:${GITHUB_SHA::7}"
-          fi
-          echo "IMAGE=$FULL" >> $GITHUB_OUTPUT
-          echo "Using: $FULL"
+          MASTER="${{ github.event.client_payload.master_image }}"
+          SLAVE="${{ github.event.client_payload.slave_image }}"
+          [ -z "$MASTER" ] && MASTER="${{ github.event.inputs.master_image }}"
+          [ -z "$SLAVE" ] && SLAVE="${{ github.event.inputs.slave_image }}"
 
-      - name: Replace image using sed
+          # Simple fallbacks (optional)
+          if [ -z "$MASTER" ]; then
+            MASTER="docker.io/nareshd2/jenkins-master:${GITHUB_SHA::7}"
+          fi
+          if [ -z "$SLAVE" ]; then
+            SLAVE="docker.io/nareshd2/jenkins-slave:${GITHUB_SHA::7}"
+          fi
+
+          echo "MASTER_IMAGE=$MASTER" >> $GITHUB_OUTPUT
+          echo "SLAVE_IMAGE=$SLAVE" >> $GITHUB_OUTPUT
+          echo "Using:"
+          echo "  MASTER_IMAGE=$MASTER"
+          echo "  SLAVE_IMAGE=$SLAVE"
+
+      - name: Update Master Image in deployment.yaml
         run: |
-          FILE="${FILE_PATH}"
-          NEW_IMAGE="${{ steps.img.outputs.IMAGE }}"
-          sed -i "s|image: ${OLD_IMAGE}|image: ${NEW_IMAGE}|" "$FILE"
-          echo "Updated image to: $NEW_IMAGE"
+          FILE="${MASTER_FILE}"
+          NEW_IMAGE="${{ steps.imgs.outputs.MASTER_IMAGE }}"
+          echo "Before (master):"
+          grep -n "image:" "$FILE" || true
+          sed -i "s|image: ${OLD_MASTER}|image: ${NEW_IMAGE}|" "$FILE"
+          echo "After (master):"
+          grep -n "image:" "$FILE" || true
+
+      - name: Update Slave Image in docker-agents.yaml
+        run: |
+          FILE="${SLAVE_FILE}"
+          NEW_IMAGE="${{ steps.imgs.outputs.SLAVE_IMAGE }}"
+          echo "Before (slave):"
+          grep -n "image:" "$FILE" || true
+          sed -i "s|image: ${OLD_SLAVE}|image: ${NEW_IMAGE}|" "$FILE"
+          echo "After (slave):"
+          grep -n "image:" "$FILE" || true
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
-          commit-message: "Update Jenkins image to ${{ steps.img.outputs.IMAGE }}"
-          branch: "auto/update-jenkins-image"
+          commit-message: |
+            Update master to ${{ steps.imgs.outputs.MASTER_IMAGE }}
+            Update slave to ${{ steps.imgs.outputs.SLAVE_IMAGE }}
+          branch: "auto/update-images"
           delete-branch: true
-          title: "Update Jenkins image to ${{ steps.img.outputs.IMAGE }}"
+          title: "Update Master & Slave Jenkins Images"
           body: |
-            Automated update from CI.
-            New image: `${{ steps.img.outputs.IMAGE }}`
+            Automated update:
+            - Master Image: `${{ steps.imgs.outputs.MASTER_IMAGE }}`
+            - Slave Image: `${{ steps.imgs.outputs.SLAVE_IMAGE }}`

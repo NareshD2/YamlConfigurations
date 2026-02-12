@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins-agent-1
+  namespace: jenkins
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins-agent-1
+  template:
+    metadata:
+      labels:
+        app: jenkins-agent-1
+    spec:
+      containers:
+        - name: agent
+          image: jenkins/inbound-agent:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: JENKINS_URL
+              value: "http://jenkins.jenkins.svc.cluster.local:8080"
+            - name: JENKINS_AGENT_NAME
+              value: "agent1-dynamic"
+            - name: JENKINS_WEB_SOCKET
+              value: "true"
+            - name: JENKINS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: agent-1-secret
+                  key: JENKINS_SECRET
+          volumeMounts:
+            - name: workspace
+              mountPath: /home/jenkins/agent
+      volumes:
+        - name: workspace
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins-agent-2
+  namespace: jenkins
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins-agent-2
+  template:
+    metadata:
+      labels:
+        app: jenkins-agent-2
+    spec:
+      containers:
+        - name: agent
+          image: jenkins/inbound-agent:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: JENKINS_URL
+              value: "http://jenkins.jenkins.svc.cluster.local:8080"
+            - name: JENKINS_AGENT_NAME
+              value: "agent2-dynamic"
+            - name: JENKINS_WEB_SOCKET
+              value: "true"
+            - name: JENKINS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: agent-2-secret
+                  key: JENKINS_SECRET
+          volumeMounts:
+            - name: workspace
+              mountPath: /home/jenkins/agent
+      volumes:
+        - name: workspace
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins-agent-3
+  namespace: jenkins
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins-agent-3
+  template:
+    metadata:
+      labels:
+        app: jenkins-agent-3
+    spec:
+      containers:
+        - name: agent
+          image: jenkins/inbound-agent:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: JENKINS_URL
+              value: "http://jenkins.jenkins.svc.cluster.local:8080"
+            - name: JENKINS_AGENT_NAME
+              value: "agent3-dynamic"
+            - name: JENKINS_WEB_SOCKET
+              value: "true"
+            - name: JENKINS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: agent-3-secret
+                  key: JENKINS_SECRET
+          volumeMounts:
+            - name: workspace
+              mountPath: /home/jenkins/agent
+      volumes:
+        - name: workspace
+          emptyDir: {}

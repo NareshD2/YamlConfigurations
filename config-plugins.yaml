@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-plugins
+  namespace: jenkins
+data:
+  plugins.txt: |
+    kubernetes
+    configuration-as-code
+    credentials
+    git
+    matrix-auth
+    job-dsl
+    

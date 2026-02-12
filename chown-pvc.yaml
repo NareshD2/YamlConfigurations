@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jenkins-chown
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+  containers:
+    - name: chown
+      image: alpine:3.20
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+      command: ["/bin/sh","-c"]
+      args:
+        - |
+          set -e
+          echo "Changing ownership of PVC to 1000:1000 ..."
+          chown -R 1000:1000 /new
+          echo "CHOWN_DONE"
+          # small delay so logs are visible
+          sleep 1
+      volumeMounts:
+        - name: jenkins-home
+          mountPath: /new
+  volumes:
+    - name: jenkins-home
+      persistentVolumeClaim:
+        claimName: jenkins-home   # <-- if your PVC has a different name, change here

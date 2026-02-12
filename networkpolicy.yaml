@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: jenkins-allow-namespace
+  namespace: jenkins
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: jenkins
+  ingress:
+    - from:
+        - podSelector: {} # allow from same namespace
+  egress:
+    - to:
+        - namespaceSelector: {} # allow egress in cluster
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+  policyTypes: ["Ingress","Egress"]

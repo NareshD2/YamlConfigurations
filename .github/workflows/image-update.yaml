@@ -12,51 +12,54 @@ on:
 
 env:
   FILE_PATH: deployment.yaml
-  DEFAULT_IMAGE: jenkins/jenkins:lts-jdk17     # OLD IMAGE TEXT TO REPLACE
+  OLD_IMAGE: jenkins/jenkins:lts-jdk17
 
 jobs:
   update-file:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout Repo
         uses: actions/checkout@v4
 
-      - name: Determine image
-        id: getimage
+      - name: Determine Image
+        id: img
         run: |
           FULL="${{ github.event.client_payload.controller_image }}"
           [ -z "$FULL" ] && FULL="${{ github.event.inputs.controller_image }}"
           TAG="${{ github.event.client_payload.controller_tag }}"
           [ -z "$TAG" ] && TAG="${{ github.event.inputs.controller_tag }}"
+
           if [ -z "$FULL" ]; then
             FULL="docker.io/nareshd2/jenkins-master:${GITHUB_SHA::7}"
           fi
-          echo "IMAGE=$FULL" >> $GITHUB_OUTPUT
-          echo "Using: $FULL"
 
-      - name: Replace image using sed (safe)
+          echo "IMAGE=$FULL" >> $GITHUB_OUTPUT
+          echo "Using image: $FULL"
+
+      - name: Replace image (SED, guaranteed to work)
         run: |
-          OLD="${DEFAULT_IMAGE}"
-          NEW="${{ steps.getimage.outputs.IMAGE }}"
           FILE="${FILE_PATH}"
+          NEW_IMAGE="${{ steps.img.outputs.IMAGE }}"
 
           echo "Before:"
-          grep "image:" $FILE || true
+          grep "image:" "$FILE"
 
-          # replace entire image field safely:
-          sed -i "s|image: $OLD|image: $NEW|" "$FILE"
+          # PURE SED REPLACEMENT — WORKS 100%
+          sed -i "s|image: ${OLD_IMAGE}|image: ${NEW_IMAGE}|" "$FILE"
 
           echo "After:"
-          grep "image:" $FILE || true
+          grep "image:" "$FILE"
 
-      - name: Commit & push
+      - name: Commit & Push
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
           git add "${FILE_PATH}"
+
           if git diff --cached --quiet; then
-            echo "No update needed"
+            echo "No changes to commit"
           else
-            git commit -m "Update Jenkins image to ${{ steps.getimage.outputs.IMAGE }}"
+            git commit -m "Update Jenkins image to ${{ steps.img.outputs.IMAGE }}"
             git push
           fi

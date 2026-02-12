@@ -13,9 +13,13 @@ on:
         required: false
 
 env:
-  FILE_PATH: k8s/jenkins-deployment.yaml
+  # 🔧 CHANGE THIS to your actual path:
+  # If your file is at repo root, use: deployment.yaml
+  # If it's in k8s/, use: k8s/jenkins-deployment.yaml
+  FILE_PATH: deployment.yaml
   CONTAINER_NAME: jenkins
-  IMAGE_REPO: docker.io/YOUR_USER/jenkins-controller
+  # 🔧 CHANGE THIS to your Docker Hub image repo (without tag):
+  IMAGE_REPO: docker.io/YOUR_USER/jenkins-master
 
 jobs:
   update-file:
@@ -34,7 +38,7 @@ jobs:
       - name: Determine target image
         id: img
         run: |
-          # Prefer full image string if provided
+          # Prefer full image string if provided in dispatch or manual input
           FULL="${{ github.event.client_payload.controller_image }}"
           [ -z "$FULL" ] && FULL="${{ github.event.inputs.controller_image }}"
 
@@ -43,7 +47,7 @@ jobs:
           [ -z "$TAG" ] && TAG="${{ github.event.inputs.controller_tag }}"
 
           if [ -z "$FULL" ]; then
-            if [ -z "$TAG" ]; then
+            if [ -z "$TAG" ] then
               TAG="${GITHUB_SHA::7}"
             fi
             FULL="${{ env.IMAGE_REPO }}:${TAG}"
@@ -57,9 +61,10 @@ jobs:
           set -e
 
           echo "Before:"
+          # yq v4 requires explicit keys in object projection
           yq '.spec.template.spec.containers // [] | .[] | {name: .name, image: .image}' "${{ env.FILE_PATH }}" || true
 
-          # Update the container image
+          # Update ONLY the container with the given name
           yq -i '
             .spec.template.spec.containers as $c
             | .spec.template.spec.containers =

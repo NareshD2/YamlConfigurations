@@ -9,13 +9,13 @@ on:
         description: "Image tag (manual run)"
         required: false
       controller_image:
-        description: "Full image (e.g., docker.io/user/repo:tag)"
+        description: "Full image path"
         required: false
 
 env:
-  FILE_PATH: deployment.yaml          # your file is at repo root
-  CONTAINER_NAME: jenkins             # the container name to target
-  IMAGE_REPO: docker.io/YOUR_USER/jenkins-master   # <-- change to your Docker Hub repo (without tag)
+  FILE_PATH: deployment.yaml
+  CONTAINER_NAME: jenkins
+  IMAGE_REPO: docker.io/nareshd2/jenkins-master     # <-- CHANGE if needed
 
 jobs:
   update-file:
@@ -25,22 +25,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install yq (YAML CLI)
+      - name: Install yq
         run: |
           sudo wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
           sudo chmod +x /usr/local/bin/yq
-          yq --version
 
       - name: Determine target image
-        id: img
-        shell: bash
+        id: vars
         run: |
-          set -e
-          # Prefer full image string if provided (repository_dispatch or manual run)
           FULL="${{ github.event.client_payload.controller_image }}"
           [ -z "$FULL" ] && FULL="${{ github.event.inputs.controller_image }}"
 
-          # Else build from repo + tag
           TAG="${{ github.event.client_payload.controller_tag }}"
           [ -z "$TAG" ] && TAG="${{ github.event.inputs.controller_tag }}"
 
@@ -48,43 +43,39 @@ jobs:
             if [ -z "$TAG" ]; then
               TAG="${GITHUB_SHA::7}"
             fi
-            FULL="${{ env.IMAGE_REPO }}:${TAG}"
+            FULL="${IMAGE_REPO}:${TAG}"
           fi
 
-          echo "full_image=$FULL" >> "$GITHUB_OUTPUT"
+          echo "IMAGE=$FULL" >> $GITHUB_OUTPUT
           echo "Using image: $FULL"
 
-      - name: Update image line in YAML
-        shell: bash
+      - name: Update image line in YAML (safe method)
         run: |
-          set -e
+          FILE="${FILE_PATH}"
+          CONTAINER="${CONTAINER_NAME}"
+          IMAGE="${{ steps.vars.outputs.IMAGE }}"
 
           echo "Before:"
-          # Use yq v4, explicit 'eval', and JSON-style object keys
-          yq eval '.spec.template.spec.containers // [] | .[] | {"name": .name, "image": .image}' "${{ env.FILE_PATH }}" || true
-          echo
+          yq eval '.spec.template.spec.containers[].image' "$FILE" || true
 
-          # Safest assignment form in yq v4 with strenv()
+          # DIRECT SAFE UPDATE
           yq eval --inplace \
-            '(.spec.template.spec.containers[] | select(.name == strenv(CONTAINER_NAME)).image) = strenv(FULL_IMAGE)' \
-            "${{ env.FILE_PATH }}" \
-            --expr-vars FULL_IMAGE="${{ steps.img.outputs.full_image }}" \
-            --expr-vars CONTAINER_NAME="${{ env.CONTAINER_NAME }}"
+            "(.spec.template.spec.containers[] | select(.name == \"${CONTAINER}\").image) = \"${IMAGE}\"" \
+            "$FILE"
 
           echo "After:"
-          yq eval '.spec.template.spec.containers // [] | .[] | {"name": .name, "image": .image}' "${{ env.FILE_PATH }}" || true
-          echo
+          yq eval '.spec.template.spec.containers[].image' "$FILE"
 
       - name: Commit & push change
-        shell: bash
         run: |
-          set -e
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add "${{ env.FILE_PATH }}"
+
+          git add "${FILE_PATH}"
+
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "No changes to commit"
           else
-            git commit -m "chore: bump image of ${{ env.CONTAINER_NAME }} to ${{ steps.img.outputs.full_image }}"
+            git commit -m "Auto-update image to ${{ steps.vars.outputs.IMAGE }}"
             git push
           fi

@@ -16,7 +16,7 @@ permissions:
 
 env:
   MASTER_FILE: deployment.yaml        # Controller manifest (root)
-  SLAVE_FILE: docker-agents.yaml      # Agent manifest (root)
+  SLAVE_FILE: agent-deploy.yaml      # Agent manifest (root)
   OLD_MASTER: jenkins/jenkins:lts-jdk17
   OLD_SLAVE: jenkins/inbound-agent:latest
 
@@ -60,7 +60,7 @@ jobs:
           echo "After (master):"
           grep -n "image:" "$FILE" || true
 
-      - name: Update Slave Image in docker-agents.yaml
+      - name: Update Slave Image in agent-deploy.yaml
         run: |
           FILE="${SLAVE_FILE}"
           NEW_IMAGE="${{ steps.imgs.outputs.SLAVE_IMAGE }}"

@@ -1,0 +1,83 @@
+name: Auto Update Image Line (No Deploy)
+
+on:
+  repository_dispatch:
+    types: [update-image]
+  workflow_dispatch:
+    inputs:
+      controller_tag:
+        description: "Image tag (manual run)"
+        required: false
+      controller_image:
+        description: "Full image (e.g., docker.io/user/repo:tag). Overrides tag if set."
+        required: false
+
+env:
+  FILE_PATH: k8s/jenkins-deployment.yaml   # <-- TODO: change to your file path
+  CONTAINER_NAME: jenkins                   # <-- TODO: container name to edit
+  IMAGE_REPO: docker.io/YOUR_USER/jenkins-controller  # <-- TODO: your image repo (without tag)
+
+jobs:
+  update-file:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install yq (YAML CLI)
+        run: |
+          sudo wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Determine target image
+        id: img
+        run: |
+          # Prefer full image string if provided in dispatch or manual input
+          FULL="${{ github.event.client_payload.controller_image }}"
+          [ -z "$FULL" ] && FULL="${{ github.event.inputs.controller_image }}"
+
+          # Else construct from repo + tag (from dispatch or manual input)
+          TAG="${{ github.event.client_payload.controller_tag }}"
+          [ -z "$TAG" ] && TAG="${{ github.event.inputs.controller_tag }}"
+          if [ -z "$FULL" ]; then
+            if [ -z "$TAG" ]; then
+              TAG="${GITHUB_SHA::7}"
+            fi
+            FULL="${{ env.IMAGE_REPO }}:${TAG}"
+          fi
+
+          echo "full_image=$FULL" >> $GITHUB_OUTPUT
+          echo "Using image: $FULL"
+
+      - name: Update image line in YAML
+        run: |
+          set -e
+          echo "Before:"
+          yq '.spec.template.spec.containers[] | {name, image}' "${{ env.FILE_PATH }}"
+          
+          # Update ONLY the container with the given name
+          yq -i '
+            .spec.template.spec.containers |=
+            ( map( if .name == "${{ env.CONTAINER_NAME }}" 
+                   then .image = "${{ steps.img.outputs.full_image }}" 
+                   else . end ) )
+          ' "${{ env.FILE_PATH }}"
+
+          echo "After:"
+          yq '.spec.template.spec.containers[] | {name, image}' "${{ env.FILE_PATH }}"
+
+      - name: Commit & push change
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add "${{ env.FILE_PATH }}"
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: bump ${{
+              env.CONTAINER_NAME
+            }} image to ${{ steps.img.outputs.full_image }}"
+            git push
+          fi

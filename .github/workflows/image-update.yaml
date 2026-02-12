@@ -57,23 +57,27 @@ jobs:
           set -e
 
           echo "Before:"
-          yq '.spec.template.spec.containers[] | {name: .name, image: .image}' "${{ env.FILE_PATH }}" || true
+          yq '.spec.template.spec.containers // [] | .[] | {name: .name, image: .image}' "${{ env.FILE_PATH }}" || true
 
-          # Update ONLY the container with the given name
+          # Update the container image
           yq -i '
-            .spec.template.spec.containers |=
-            ( map(
-                if .name == env(CONTAINER_NAME)
-                then .image = env(FULL_IMAGE)
-                else .
-                end
-            ))
+            .spec.template.spec.containers as $c
+            | .spec.template.spec.containers =
+                (
+                  ($c // [])
+                  | map(
+                      if .name == env(CONTAINER_NAME)
+                      then .image = env(FULL_IMAGE)
+                      else .
+                      end
+                    )
+                )
           ' "${{ env.FILE_PATH }}" \
             FULL_IMAGE="${{ steps.img.outputs.full_image }}" \
             CONTAINER_NAME="${{ env.CONTAINER_NAME }}"
 
           echo "After:"
-          yq '.spec.template.spec.containers[] | {name: .name, image: .image}' "${{ env.FILE_PATH }}" || true
+          yq '.spec.template.spec.containers // [] | .[] | {name: .name, image: .image}' "${{ env.FILE_PATH }}" || true
 
       - name: Commit & push change
         run: |

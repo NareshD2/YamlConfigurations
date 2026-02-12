@@ -6,76 +6,57 @@ on:
   workflow_dispatch:
     inputs:
       controller_tag:
-        description: "Image tag (manual run)"
         required: false
       controller_image:
-        description: "Full image path"
         required: false
 
 env:
   FILE_PATH: deployment.yaml
-  CONTAINER_NAME: jenkins
-  IMAGE_REPO: docker.io/nareshd2/jenkins-master     # <-- CHANGE if needed
+  DEFAULT_IMAGE: jenkins/jenkins:lts-jdk17     # OLD IMAGE TEXT TO REPLACE
 
 jobs:
   update-file:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install yq
-        run: |
-          sudo wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
-          sudo chmod +x /usr/local/bin/yq
-
-      - name: Determine target image
-        id: vars
+      - name: Determine image
+        id: getimage
         run: |
           FULL="${{ github.event.client_payload.controller_image }}"
           [ -z "$FULL" ] && FULL="${{ github.event.inputs.controller_image }}"
-
           TAG="${{ github.event.client_payload.controller_tag }}"
           [ -z "$TAG" ] && TAG="${{ github.event.inputs.controller_tag }}"
-
           if [ -z "$FULL" ]; then
-            if [ -z "$TAG" ]; then
-              TAG="${GITHUB_SHA::7}"
-            fi
-            FULL="${IMAGE_REPO}:${TAG}"
+            FULL="docker.io/nareshd2/jenkins-master:${GITHUB_SHA::7}"
           fi
-
           echo "IMAGE=$FULL" >> $GITHUB_OUTPUT
-          echo "Using image: $FULL"
+          echo "Using: $FULL"
 
-      - name: Update image line in YAML (safe method)
+      - name: Replace image using sed (safe)
         run: |
+          OLD="${DEFAULT_IMAGE}"
+          NEW="${{ steps.getimage.outputs.IMAGE }}"
           FILE="${FILE_PATH}"
-          CONTAINER="${CONTAINER_NAME}"
-          IMAGE="${{ steps.vars.outputs.IMAGE }}"
 
           echo "Before:"
-          yq eval '.spec.template.spec.containers[].image' "$FILE" || true
+          grep "image:" $FILE || true
 
-          # DIRECT SAFE UPDATE
-          yq eval --inplace \
-            "(.spec.template.spec.containers[] | select(.name == \"${CONTAINER}\").image) = \"${IMAGE}\"" \
-            "$FILE"
+          # replace entire image field safely:
+          sed -i "s|image: $OLD|image: $NEW|" "$FILE"
 
           echo "After:"
-          yq eval '.spec.template.spec.containers[].image' "$FILE"
+          grep "image:" $FILE || true
 
-      - name: Commit & push change
+      - name: Commit & push
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-
           git add "${FILE_PATH}"
-
           if git diff --cached --quiet; then
-            echo "No changes to commit"
+            echo "No update needed"
           else
-            git commit -m "Auto-update image to ${{ steps.vars.outputs.IMAGE }}"
+            git commit -m "Update Jenkins image to ${{ steps.getimage.outputs.IMAGE }}"
             git push
           fi

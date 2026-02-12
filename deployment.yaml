@@ -27,7 +27,7 @@ spec:
 
       containers:
         - name: jenkins
-          image: jenkins/jenkins:lts-jdk17
+          image: docker.io/nareshd2/jenkins-master:2d50f5a
           imagePullPolicy: IfNotPresent
 
           ports:

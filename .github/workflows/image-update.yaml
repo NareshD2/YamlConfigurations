@@ -1,4 +1,4 @@
-name: Auto Update Image Line (No Deploy)
+name: Auto Update Image Line (PR Mode)
 
 on:
   repository_dispatch:
@@ -39,18 +39,12 @@ jobs:
           echo "IMAGE=$FULL" >> $GITHUB_OUTPUT
           echo "Using: $FULL"
 
-      - name: Replace image using sed (safe)
+      - name: Replace image using sed
         run: |
           FILE="${FILE_PATH}"
           NEW_IMAGE="${{ steps.img.outputs.IMAGE }}"
-
-          echo "Before:"
-          grep -n "image:" "$FILE" || true
-
           sed -i "s|image: ${OLD_IMAGE}|image: ${NEW_IMAGE}|" "$FILE"
-
-          echo "After:"
-          grep -n "image:" "$FILE" || true
+          echo "Updated image to: $NEW_IMAGE"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
@@ -60,5 +54,5 @@ jobs:
           delete-branch: true
           title: "Update Jenkins image to ${{ steps.img.outputs.IMAGE }}"
           body: |
-            Automated update of Jenkins controller image.
+            Automated update from CI.
             New image: `${{ steps.img.outputs.IMAGE }}`

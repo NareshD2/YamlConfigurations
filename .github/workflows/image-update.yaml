@@ -83,3 +83,4 @@ jobs:
             Automated update:
             - Master Image: `${{ steps.imgs.outputs.MASTER_IMAGE }}`
             - Slave Image: `${{ steps.imgs.outputs.SLAVE_IMAGE }}`
+          always-create: true

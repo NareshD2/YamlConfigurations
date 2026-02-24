@@ -27,7 +27,7 @@ spec:
 
       containers:
         - name: jenkins
-          image: jenkins/jenkins:lts-jdk17
+          image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-master@sha256:fd7990522d6225d7336d34fce967c90125499de05b8ab682785e3dbe3b264b89
           imagePullPolicy: IfNotPresent
 
           ports:
@@ -52,21 +52,23 @@ spec:
                   name: jenkins-admin-secret
                   key: password
 
-          readinessProbe:
-            httpGet:
-              path: /login
-              port: 8080
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            failureThreshold: 12
+          # readinessProbe:
+          #   httpGet:
+          #     path: /login
+          #     port: 8080
+          #   initialDelaySeconds: 120
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          #   failureThreshold: 18
 
-          livenessProbe:
-            httpGet:
-              path: /login
-              port: 8080
-            initialDelaySeconds: 90
-            periodSeconds: 10
-            failureThreshold: 12
+          # livenessProbe:
+          #   httpGet:
+          #     path: /login
+          #     port: 8080
+          #   initialDelaySeconds: 180
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          #   failureThreshold: 12
 
           resources:
             requests:

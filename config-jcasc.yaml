@@ -12,8 +12,7 @@ data:
       disableRememberMe: true
 
       crumbIssuer:
-        standard:
-          excludeClientIPFromCrumb: true
+        standard: {}
 
       securityRealm:
         local:
@@ -26,18 +25,22 @@ data:
         loggedInUsersCanDoAnything:
           allowAnonymousRead: false
 
-      # Configure Kubernetes cloud for dynamic agents
       clouds:
         - kubernetes:
             name: "kubernetes"
             serverUrl: "https://kubernetes.default"
             namespace: "jenkins"
             jenkinsUrl: "http://jenkins.jenkins.svc.cluster.local:8080"
-            webSocket: true
-            containerCapStr: "30"   # raise global cap if you expect many parallel pods
+
+            # 🔥 IMPORTANT — ADDED FOR JNLP AGENT CONNECTION
+            jenkinsTunnel: "jenkins.jenkins.svc.cluster.local:50000"
+
+            webSocket: false
+            containerCapStr: "30"
+
             templates:
               # -----------------------------------------------------
-              # Default dynamic agent (generic)
+              # Default dynamic agent
               # -----------------------------------------------------
               - name: "default"
                 label: "k8s"
@@ -52,7 +55,7 @@ data:
                     restartPolicy: Never
                     containers:
                       - name: jnlp
-                        image: jenkins/inbound-agent:latest-jdk17
+                        image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-agent@sha256:b2ee4599a1af9b81dd18b928c19e737c718da1e70714ceebbfd1aea5373ad2a5
                         imagePullPolicy: IfNotPresent
                         args: ['$(JENKINS_SECRET)', '$(JENKINS_NAME)']
                         resources:
@@ -62,6 +65,7 @@ data:
                           limits:
                             cpu: "2"
                             memory: "2Gi"
+
                       - name: alpine
                         image: alpine:3.19
                         command: ['cat']
@@ -73,13 +77,13 @@ data:
                         volumeMounts:
                           - mountPath: /workspace
                             name: workspace-volume
+
                     volumes:
                       - name: workspace-volume
                         emptyDir: {}
 
               # -----------------------------------------------------
-              # Dynamic agent for "agent1" workloads
-              # Use label: agent1
+              # Agent 1
               # -----------------------------------------------------
               - name: "agent1-dynamic"
                 label: "agent1"
@@ -92,8 +96,9 @@ data:
                     restartPolicy: Never
                     containers:
                       - name: jnlp
-                        image: jenkins/inbound-agent:latest-jdk17
+                        image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-agent@sha256:b2ee4599a1af9b81dd18b928c19e737c718da1e70714ceebbfd1aea5373ad2a5
                         imagePullPolicy: IfNotPresent
+                        args: ['$(JENKINS_SECRET)', '$(JENKINS_NAME)']
                         resources:
                           requests:
                             cpu: "200m"
@@ -101,12 +106,10 @@ data:
                           limits:
                             cpu: "2"
                             memory: "2Gi"
-                    # Example workspace volume (ephemeral). If you need caching, switch to a PVC.
                     volumes: []
 
               # -----------------------------------------------------
-              # Dynamic agent for "agent2" workloads
-              # Use label: agent2
+              # Agent 2
               # -----------------------------------------------------
               - name: "agent2-dynamic"
                 label: "agent2"
@@ -119,8 +122,9 @@ data:
                     restartPolicy: Never
                     containers:
                       - name: jnlp
-                        image: jenkins/inbound-agent:latest-jdk17
+                        image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-agent@sha256:b2ee4599a1af9b81dd18b928c19e737c718da1e70714ceebbfd1aea5373ad2a5
                         imagePullPolicy: IfNotPresent
+                        args: ['$(JENKINS_SECRET)', '$(JENKINS_NAME)']
                         resources:
                           requests:
                             cpu: "200m"
@@ -131,8 +135,7 @@ data:
                     volumes: []
 
               # -----------------------------------------------------
-              # Dynamic agent for "agent3" workloads
-              # Use label: agent3
+              # Agent 3
               # -----------------------------------------------------
               - name: "agent3-dynamic"
                 label: "agent3"
@@ -145,8 +148,9 @@ data:
                     restartPolicy: Never
                     containers:
                       - name: jnlp
-                        image: jenkins/inbound-agent:latest-jdk17
+                        image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-agent@sha256:b2ee4599a1af9b81dd18b928c19e737c718da1e70714ceebbfd1aea5373ad2a5
                         imagePullPolicy: IfNotPresent
+                        args: ['$(JENKINS_SECRET)', '$(JENKINS_NAME)']
                         resources:
                           requests:
                             cpu: "200m"

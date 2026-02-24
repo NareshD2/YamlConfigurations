@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: agent
-          image: jenkins/inbound-agent:latest
+          image:  harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-agent@sha256:b2ee4599a1af9b81dd18b928c19e737c718da1e70714ceebbfd1aea5373ad2a5
           imagePullPolicy: IfNotPresent
           env:
             - name: JENKINS_URL
@@ -53,7 +53,7 @@ spec:
     spec:
       containers:
         - name: agent
-          image: jenkins/inbound-agent:latest
+          image:  harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-agent@sha256:b2ee4599a1af9b81dd18b928c19e737c718da1e70714ceebbfd1aea5373ad2a5
           imagePullPolicy: IfNotPresent
           env:
             - name: JENKINS_URL
@@ -91,7 +91,7 @@ spec:
     spec:
       containers:
         - name: agent
-          image: jenkins/inbound-agent:latest
+          image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-agent@sha256:b2ee4599a1af9b81dd18b928c19e737c718da1e70714ceebbfd1aea5373ad2a5
           imagePullPolicy: IfNotPresent
           env:
             - name: JENKINS_URL

@@ -1,20 +1,17 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: jenkins
-  namespace: jenkins
+  name: jenkins-ingress
+  namespace: dgb-ny2-jenkins
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "0"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
 spec:
-  ingressClassName: nginx
   tls:
     - hosts:
-        - jenkins.example.com
+        - jenkins.company.com
       secretName: jenkins-tls
   rules:
-    - host: jenkins.example.com
+    - host: jenkins.company.com
       http:
         paths:
           - path: /

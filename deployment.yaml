@@ -1,23 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: jenkins
-  namespace: jenkins
-  labels:
-    app.kubernetes.io/name: jenkins
+  name: dgb-idt-jkns14
+  namespace: dgb-ny2np2-jenkins
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: jenkins
+      app.kubernetes.io/name: dgb-idt-jkns14
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: jenkins
+        app.kubernetes.io/name: dgb-idt-jkns14
     spec:
-      serviceAccountName: jenkins
+      serviceAccountName: dgb-ny2np2-jnks-svc-acc
 
       securityContext:
         fsGroup: 1000
@@ -25,9 +23,41 @@ spec:
         runAsUser: 1000
         runAsGroup: 1000
 
+      # --- Runs BEFORE the main Jenkins container to populate plugins on the PVC ---
+      initContainers:
+        - name: init-copy-plugins
+          image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-master:1.0.1
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Copying Jenkins plugins from image to PVC...";
+              mkdir -p /var/jenkins_home/plugins
+              # Copy all baked-in plugins from the image into the persistent volume
+              cp -Rv /usr/share/jenkins/ref/plugins/* /var/jenkins_home/plugins/ || true
+              # Ensure correct ownership and permissions for Jenkins uid/gid 1000
+              chown -R 1000:1000 /var/jenkins_home/plugins || true
+              find /var/jenkins_home/plugins -type d -exec chmod 755 {} \; || true
+              find /var/jenkins_home/plugins -type f -exec chmod 644 {} \; || true
+          securityContext:
+            runAsUser: 0   # root inside initContainer to allow chown/chmod on PVC
+          
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+
+          volumeMounts:
+            - name: jenkins-home
+              mountPath: /var/jenkins_home
+
       containers:
-        - name: jenkins
-          image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-master@sha256:fd7990522d6225d7336d34fce967c90125499de05b8ab682785e3dbe3b264b89
+        - name: dgb-idt-jkns14
+          # image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-master@sha256:fd7990522d6225d7336d34fce967c90125499de05b8ab682785e3dbe3b264b89
+          # image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-master@sha256:1da9519207e5bd114f3be395fd944a587c16a3781d1dc5122481c8a87b24682d
+          image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-master:1.0.1
           imagePullPolicy: IfNotPresent
 
           ports:
@@ -44,31 +74,33 @@ spec:
             - name: JENKINS_ADMIN_ID
               valueFrom:
                 secretKeyRef:
-                  name: jenkins-admin-secret
+                  name: dgb-idt-jkns14-admin-secret
                   key: username
             - name: JENKINS_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: jenkins-admin-secret
+                  name: dgb-idt-jkns14-admin-secret
                   key: password
+            - name: JENKINS_SLAVE_AGENT_PORT
+              value: "50000"
 
-          # readinessProbe:
-          #   httpGet:
-          #     path: /login
-          #     port: 8080
-          #   initialDelaySeconds: 120
-          #   periodSeconds: 10
-          #   timeoutSeconds: 5
-          #   failureThreshold: 18
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 18
 
-          # livenessProbe:
-          #   httpGet:
-          #     path: /login
-          #     port: 8080
-          #   initialDelaySeconds: 180
-          #   periodSeconds: 10
-          #   timeoutSeconds: 5
-          #   failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
 
           resources:
             requests:
@@ -87,41 +119,27 @@ spec:
           volumeMounts:
             - name: jenkins-home
               mountPath: /var/jenkins_home
-
             - name: jcasc
               mountPath: /var/jenkins_home/casc_configs
 
-            - name: plugins
-              mountPath: /plugins/plugins.txt
-              subPath: plugins.txt
-
       volumes:
-        # 🔥 THIS IS THE IMPORTANT CHANGE
         - name: jenkins-home
           persistentVolumeClaim:
-            claimName: jenkins-home
-            
+            claimName: dgb-idt-jkns14-home-rbd
 
         - name: jcasc
           configMap:
-            name: jenkins-jcasc
+            name: dgb-idt-jkns14-jcasc
             items:
               - key: jenkins.yaml
                 path: jenkins.yaml
 
-        - name: plugins
-          configMap:
-            name: jenkins-plugins
-            items:
-              - key: plugins.txt
-                path: plugins.txt
-
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                topologyKey: kubernetes.io/hostname
-                labelSelector:
-                  matchLabels:
-                    app.kubernetes.io/name: jenkins
+      # affinity:
+      #   podAntiAffinity:
+      #     preferredDuringSchedulingIgnoredDuringExecution:
+      #       - weight: 100
+      #         podAffinityTerm:
+      #           topologyKey: kubernetes.io/hostname
+      #           labelSelector:
+      #             matchLabels:
+      #               app.kubernetes.io/name: dgb-idt-jkns14

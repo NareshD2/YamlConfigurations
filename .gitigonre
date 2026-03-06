@@ -1,0 +1,11 @@
+chown-pvc.yaml
+fix-permission.yaml
+jenkins-copy.yaml
+jenkins-rsync.yaml
+jenkins-tls.yaml
+namespace.yaml
+pvc1.yaml
+ingress.yaml
+jenkins-tls.yaml
+multtoll.yaml
+

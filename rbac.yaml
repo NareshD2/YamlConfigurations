@@ -1,14 +1,14 @@
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: jenkins
-  namespace: jenkins
+# apiVersion: v1
+# kind: ServiceAccount
+# metadata:
+#   name: dgb-ny2np2-jnks-svc-acc
+#   namespace: dgb-ny2np2-jenkins
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: jenkins
-  namespace: jenkins
+  name: Jenkins_Controller_permissions
+  namespace: dgb-ny2np2-jenkins
 rules:
   - apiGroups: [""]
     resources:
@@ -27,13 +27,13 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: jenkins
-  namespace: jenkins
+  name: dgb-idt-jkns14-RoleBinding
+  namespace: dgb-ny2np2-jenkins
 subjects:
   - kind: ServiceAccount
-    name: jenkins
-    namespace: jenkins
+    name: dgb-ny2np2-jnks-svc-acc
+    namespace: dgb-ny2np2-jenkins
 roleRef:
   kind: Role
-  name: jenkins
+  name: Jenkins_Controller_permissions
   apiGroup: rbac.authorization.k8s.io

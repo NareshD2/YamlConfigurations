@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: jenkins-agent-1
-  namespace: jenkins
+  namespace: dgb-ny2np2-jenkins
 spec:
   replicas: 1
   selector:
@@ -15,32 +15,53 @@ spec:
     spec:
       containers:
         - name: agent
-          image:  harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-agent@sha256:b2ee4599a1af9b81dd18b928c19e737c718da1e70714ceebbfd1aea5373ad2a5
-          imagePullPolicy: IfNotPresent
+          image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-agent@sha256:b2ee4599a1af9b81dd18b928c19e737c718da1e70714ceebbfd1aea5373ad2a5
+
+
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              java -jar /usr/share/jenkins/agent.jar
+              -webSocket
+              -url "$JENKINS_URL"
+              -workDir "/home/jenkins/agent"
+              -secret "$JENKINS_SECRET"
+              -name "$JENKINS_AGENT_NAME"
+
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+
           env:
             - name: JENKINS_URL
-              value: "http://jenkins.jenkins.svc.cluster.local:8080"
+              value: "http://dgb-idt-jkns14:8080"
             - name: JENKINS_AGENT_NAME
-              value: "agent1-dynamic"
-            - name: JENKINS_WEB_SOCKET
-              value: "true"
+              value: "jenkins-agent-1"
             - name: JENKINS_SECRET
               valueFrom:
                 secretKeyRef:
                   name: agent-1-secret
                   key: JENKINS_SECRET
+
           volumeMounts:
             - name: workspace
               mountPath: /home/jenkins/agent
+
       volumes:
         - name: workspace
           emptyDir: {}
 ---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: jenkins-agent-2
-  namespace: jenkins
+  namespace: dgb-ny2np2-jenkins
 spec:
   replicas: 1
   selector:
@@ -53,61 +74,44 @@ spec:
     spec:
       containers:
         - name: agent
-          image:  harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-agent@sha256:b2ee4599a1af9b81dd18b928c19e737c718da1e70714ceebbfd1aea5373ad2a5
+          image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-agent@sha256:b2ee4599a1af9b81dd18b928c19e737c718da1e70714ceebbfd1aea5373ad2a5
           imagePullPolicy: IfNotPresent
+
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              
+              java -jar /usr/share/jenkins/agent.jar
+              -webSocket
+              -url "$JENKINS_URL"
+              -workDir "/home/jenkins/agent"
+              -secret "$JENKINS_SECRET"
+              -name "$JENKINS_AGENT_NAME"
+
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+
           env:
             - name: JENKINS_URL
-              value: "http://jenkins.jenkins.svc.cluster.local:8080"
+              value: "http://dgb-idt-jkns14:8080"
             - name: JENKINS_AGENT_NAME
-              value: "agent2-dynamic"
-            - name: JENKINS_WEB_SOCKET
-              value: "true"
+              value: "jenkins-agent-2"
             - name: JENKINS_SECRET
               valueFrom:
                 secretKeyRef:
                   name: agent-2-secret
                   key: JENKINS_SECRET
+
           volumeMounts:
             - name: workspace
               mountPath: /home/jenkins/agent
-      volumes:
-        - name: workspace
-          emptyDir: {}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: jenkins-agent-3
-  namespace: jenkins
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: jenkins-agent-3
-  template:
-    metadata:
-      labels:
-        app: jenkins-agent-3
-    spec:
-      containers:
-        - name: agent
-          image: harbor-ny2n.saas-n.com/dgb/jenkins/dgb-jenkins-base-agent@sha256:b2ee4599a1af9b81dd18b928c19e737c718da1e70714ceebbfd1aea5373ad2a5
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: JENKINS_URL
-              value: "http://jenkins.jenkins.svc.cluster.local:8080"
-            - name: JENKINS_AGENT_NAME
-              value: "agent3-dynamic"
-            - name: JENKINS_WEB_SOCKET
-              value: "true"
-            - name: JENKINS_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: agent-3-secret
-                  key: JENKINS_SECRET
-          volumeMounts:
-            - name: workspace
-              mountPath: /home/jenkins/agent
+
       volumes:
         - name: workspace
           emptyDir: {}
